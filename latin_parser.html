@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Latin word parser</title>
+</head>
+
+<body style="padding-left: 10px">
+    <div>
+        <header>
+            <h1> Latin Word Parser </h1>
+            <p> Enter latin text to parse. Calls a latindictionary.io API to
+                get a list of words and their definitions. You can download the
+                definitions as a tab-separated file (TSV) which can be imported
+                into a spreadsheet, or display the results in columns and then
+                copy them into a spreadsheet.
+            </p>
+        </header>
+        <div>
+            <label for="latin">Latin text</label><br>
+            <textarea rows="5" cols="100" id="latin" name="latin"></textarea><br>
+            <button onclick="getTSV()">Download TSV</button>&nbsp;&nbsp;
+            <button onclick="getWords()">Display in columns</button>&nbsp;&nbsp;
+            <button onclick="clearText()">Clear text</button>&nbsp;&nbsp;
+            <button onclick="clearTable()">Clear output</button>&nbsp;&nbsp;
+        </div>
+        <div>
+            <table id="output-table">
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function getTSV() {
+            // Get the text from the text box
+            textToParse = document.getElementById("latin").value
+
+            if (textToParse.trim().length > 0) {
+                // Call the API to get the definitions
+                fetch("https://api.latindictionary.io/api/v1/latin-parse?q="
+                    + encodeURIComponent(textToParse),
+                    {
+                        method: "GET",
+                        headers: {
+                            "Content-type": "application/json",
+                        },
+                    })
+                    .then((response) => response.json())
+                    .then((json) => {
+                        // Parse the data into csv format
+                        tokens = json['data']['sentences'][0]['tokens']
+                        output = 'word (part of speech)\tdefinition\n'
+                        tokens.forEach(token => {
+                            // Word
+                            output += token['analysis']['dict']['hdwd']
+                            // Part of speech
+                            output += ' (' + token['analysis']['dict']['pofs'] + ')\t'
+                            // Definition
+                            output += token['analysis']['mean'].join(' ')
+                            output += '\n'
+
+                            // Alternates (up to 3)
+                            for (var i = 0; i < token['alternates'].length; i++) {
+                                if (i > 2) break;
+                                // Word
+                                output += token['alternates'][i]['dict']['hdwd']
+                                // Part of speech
+                                output += ' (' + token['alternates'][i]['dict']['pofs'] + ')\t'
+                                // Definition
+                                output += token['alternates'][i]['mean'].join(' ')
+                                output += '\n'
+                            }
+
+                        });
+
+                        // Create the file for download
+                        var hiddenElement = document.createElement('a');
+                        hiddenElement.href = 'data:text/tab-separated-values,' + encodeURI(output);
+                        hiddenElement.target = '_blank';
+                        hiddenElement.download = 'latin_words.tsv';
+                        hiddenElement.click();
+                    });
+            } else {
+                alert('Please enter text in the text box')
+            }
+        }
+
+        function getWords() {
+            clearTable()
+            // Get the text from the text box
+            textToParse = document.getElementById("latin").value
+
+            if (textToParse.trim().length > 0) {
+                // Call the API to get the definitions
+                fetch("https://api.latindictionary.io/api/v1/latin-parse?q="
+                    + encodeURIComponent(textToParse),
+                    {
+                        method: "GET",
+                        headers: {
+                            "Content-type": "application/json",
+                        },
+                    })
+                    .then((response) => response.json())
+                    .then((json) => {
+                        tokens = json['data']['sentences'][0]['tokens']
+                        var table = document.getElementById("output-table")
+                        var index = 0
+                        var row = table.insertRow(index)
+                        var cell1 = row.insertCell(0)
+                        var cell2 = row.insertCell(1)
+
+                        cell1.innerHTML = 'Word'
+                        cell2.innerHTML = 'Definition'
+                        index += 1
+
+                        tokens.forEach(token => {
+                            // Parse the data and add it to a table on screen
+                            var row = table.insertRow(index)
+                            var cell1 = row.insertCell(0)
+                            var cell2 = row.insertCell(1)
+
+                            // Word and part of speech
+                            cell1.innerHTML = token['analysis']['dict']['hdwd']
+                                + ' (' + token['analysis']['dict']['pofs'] + ')'
+                            // definition
+                            cell2.innerHTML = token['analysis']['mean'].join(' ')
+
+                            index += 1
+
+                            // Alternates (up to 3)
+                            for (var i = 0; i < token['alternates'].length; i++) {
+                                if (i > 2) break
+
+                                var row = table.insertRow(index)
+                                var cell1 = row.insertCell(0)
+                                var cell2 = row.insertCell(1)
+
+                                // Word and part of speech
+                                cell1.innerHTML = token['alternates'][i]['dict']['hdwd']
+                                    + ' (' + token['alternates'][i]['dict']['pofs'] + ')'
+                                // Definition
+                                cell2.innerHTML = token['alternates'][i]['mean'].join(' ')
+
+                                index += 1
+                            }
+
+                        });
+                    });
+            } else {
+                alert('Please enter text in the text box')
+            }
+        }
+
+        function clearText() {
+            document.getElementById("latin").value = ''
+        }
+
+        function clearTable() {
+            document.getElementById("output-table").innerHTML = ""
+        }
+    </script>
+</body>
+
+</html>
